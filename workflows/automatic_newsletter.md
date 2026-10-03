@@ -9,9 +9,10 @@
 - Stores deduplication state in `.local/newsletter_state.json`; keep this directory between runs.
 
 ## Signup service setup
-- Deploy `tools/signup_app.py` as a persistent web service using the root `Procfile`.
-- Configure `PUBLIC_SIGNUP_URL`, `SUBSCRIBER_API_TOKEN`, `GMAIL_TOKEN_JSON`, and `NEWSLETTER_DB` on the hosting service. Mount persistent storage for `NEWSLETTER_DB` so verified subscriptions survive restarts. The Gmail token must have the `gmail.send` scope.
-- Add GitHub Actions repository secrets `NEWSLETTER_SIGNUP_API_URL` (the deployed public origin) and `SUBSCRIBER_API_TOKEN` (the same secret as on the web service). The workflow fetches only verified subscribers through the authenticated API.
+- Import this repository as a Vercel project. Vercel detects the Flask app through the root `app.py` entry point.
+- Add a Postgres database through Vercel Marketplace and make its connection string available as `DATABASE_URL`. Subscriber records are stored in Postgres because Vercel function filesystems are not persistent.
+- Configure `PUBLIC_SIGNUP_URL`, `SUBSCRIBER_API_TOKEN`, and `GMAIL_TOKEN_JSON` in Vercel. The Gmail token must have the `gmail.send` scope. `PUBLIC_SIGNUP_URL` must be the deployed HTTPS origin.
+- Add GitHub Actions repository secrets `NEWSLETTER_SIGNUP_API_URL` (the deployed URL ending in `/api/subscribers`) and `SUBSCRIBER_API_TOKEN` (the same secret as on the web service). Also set `UNSUBSCRIBE_SIGNING_KEY` in Vercel so the API can attach signed unsubscribe links to each address.
 - Open the deployed service root to sign up with an email and freeform topic. The service sends a Gmail verification link; the address receives newsletters only after the link is opened.
 - `NEWSLETTER_SUBSCRIBERS_JSON` remains an optional manual fallback when `NEWSLETTER_SIGNUP_API_URL` is unset.
 
@@ -26,6 +27,6 @@
 
 ## Safety and failures
 - Never print API keys, OAuth tokens, or credential file contents.
-- The workflow updates deduplication state only after Gmail confirms all sends.
+- The workflow updates per-subscriber deduplication state after each Gmail send succeeds.
 - Provider, network, or Gmail errors stop the run and are recorded by the scheduler log.
 - The signup API exposes subscriber data only with the bearer token and returns verified email addresses only.

@@ -1,23 +1,21 @@
-# Public topic newsletter signup
+# Host the public topic signup page
 
-The public signup page is a Google Apps Script web app. Subscribers enter an email and a free-form topic. The service sends a confirmation link, keeps pending addresses out of the newsletter, and gives each confirmed topic subscription its own unsubscribe link. The GitHub Actions job searches each distinct topic and sends only to confirmed subscriptions.
+The Flask app in `tools/signup_app.py` serves the public signup page, verifies email addresses, stores subscribers in PostgreSQL, and provides a protected subscriber API to the GitHub Actions sender. New subscribers are not mailed until they confirm. Newsletter messages include a body unsubscribe link and one-click unsubscribe headers.
 
 ## Deploy the signup app
 
-1. Open [Google Apps Script](https://script.google.com/) and create a new project.
-2. Add the contents of `apps_script/Code.gs` to `Code.gs`. Add an HTML file named `signup` and paste `apps_script/signup.html` into it.
-3. Save, select `setupNewsletterSubscribers`, and click **Run**. Approve the requested Google Sheets and email permissions. In the execution log, copy the `spreadsheetUrl` and `subscribersApiKey`; keep the key private.
-4. Choose **Deploy → New deployment → Web app**. Set **Execute as** to yourself and access to **Anyone**. Deploy and copy the web app URL ending in `/exec`.
-5. In the GitHub repository, open **Settings → Secrets and variables → Actions** and add:
-   - `NEWSLETTER_SIGNUP_API_URL`: the web app `/exec` URL.
-   - `SUBSCRIBER_API_TOKEN`: the `subscribersApiKey` from the setup run.
-6. Share the web app URL as the signup page. Subscribers must confirm from email before they receive topic newsletters.
+1. Import this GitHub repository into a Vercel project. Vercel detects the Flask `app` exported from root `app.py`.
+2. Attach a PostgreSQL database and configure `DATABASE_URL` (or `POSTGRES_URL`) in the Vercel production environment.
+3. Configure these Vercel production environment variables:
+   - `GMAIL_TOKEN_JSON`: the contents of `.tmp/token.json`.
+   - `SUBSCRIBER_API_TOKEN`: a long random secret; use the same value in GitHub Actions.
+   - `UNSUBSCRIBE_SIGNING_KEY`: a separate random secret at least 32 characters long.
+4. Deploy once to get the production URL. Set `PUBLIC_SIGNUP_URL` to that HTTPS URL in Vercel, then redeploy.
+5. In the GitHub repository’s **Settings → Secrets and variables → Actions**, set:
+   - `NEWSLETTER_SIGNUP_API_URL`: `https://YOUR-PRODUCTION-DOMAIN/api/subscribers`.
+   - `SUBSCRIBER_API_TOKEN`: the same secret configured in Vercel.
+6. Share the production root URL as the signup page.
 
-The spreadsheet is created in the deploying Google account and is not shared with signups. The public app limits repeated confirmation requests for the same email and uses a hidden form field to deter simple bots. Apps Script currently limits personal Gmail accounts to 100 MailApp recipients per day for signup confirmations. The newsletter runner caps its sends at 400 recipient/topic messages per day to leave room under Gmail's personal account sending limit.
+Keep the Gmail token and both random keys private. Do not commit them or paste them into chat. The signup database must be persistent PostgreSQL; Vercel's function filesystem is not suitable for keeping subscriber records. Vercel supports root `app.py` Flask deployments with zero configuration; see [Vercel's Flask deployment guide](https://vercel.com/docs/frameworks/backend/flask).
 
-## Manage subscriptions
-
-- The sheet is named `Newsletter subscribers`; change a row's status to `unsubscribed` to remove a subscription manually.
-- Each newsletter contains an unsubscribe link and one-click unsubscribe headers.
-- If the web app is redeployed with a new URL, update the `NEWSLETTER_SIGNUP_API_URL` Actions secret.
-- The scheduled sender still adds `hs6423590@gmail.com` to the Web development and Artificial intelligence topics for the owner.
+The current Gmail account can send up to 500 messages per day. Signup is limited to 50 confirmation messages per day and 10 requests per IP per day; the scheduled sender caps newsletters at 400 email/topic messages to leave room for confirmations. If the list grows, move newsletter delivery to a dedicated mailing provider. Google also requires subscribed/marketing mail to provide an unsubscribe mechanism; this app provides a confirmation page for link clicks and supports one-click unsubscribe POST requests.

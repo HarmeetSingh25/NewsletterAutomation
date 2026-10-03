@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".local/newsletter_state.json"
 WORK = ROOT / ".tmp"
 RECIPIENT = "hs6423590@gmail.com"
+SUBSCRIBERS_FILE = ROOT / ".local/subscribers.json"
 OWNER_TOPICS = ("Web development", "Artificial intelligence")
 MAX_MESSAGES_PER_RUN = 400
 MAX_TOPICS_PER_RUN = 20
@@ -52,7 +53,7 @@ def load_subscribers():
             data = data.get("subscribers")
     else:
         raw = os.getenv("NEWSLETTER_SUBSCRIBERS_JSON", "").strip()
-        data = json.loads(raw) if raw else []
+        data = json.loads(raw) if raw else (json.loads(SUBSCRIBERS_FILE.read_text(encoding="utf-8")) if SUBSCRIBERS_FILE.exists() else [])
 
     if not isinstance(data, list):
         raise ValueError("The subscriber service must return a JSON list")
@@ -67,8 +68,8 @@ def load_subscribers():
         if not email or not isinstance(topics, list) or not topics:
             raise ValueError("Each subscriber record must contain an email address and at least one topic")
         for topic in topics:
-            if not isinstance(topic, str) or not topic.strip() or len(topic.strip()) > 120:
-                raise ValueError("Subscriber topics must contain 1 to 120 characters")
+            if not isinstance(topic, str) or not topic.strip() or len(topic.strip()) > 160:
+                raise ValueError("Subscriber topics must contain 1 to 160 characters")
             topic = " ".join(topic.strip().split())
             pair = (email.lower(), topic_key(topic))
             if pair in unique:
