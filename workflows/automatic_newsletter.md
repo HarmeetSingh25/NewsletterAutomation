@@ -1,21 +1,23 @@
-# Automatic daily web development and AI newsletter
+# Automatic daily newsletter
 
 ## Schedule and behavior
-- Runs every day at 6:00 a.m. Asia/Kolkata on the configured Mac.
-- Searches Tavily news from the previous day for web development and AI.
+- GitHub Actions runs every day at 6:00 a.m. Asia/Kolkata.
+- Searches Tavily news from the previous day for each distinct topic requested by a verified subscriber.
 - Sends only when it finds source URLs not previously included in a sent digest.
 - Generates a Nano Banana infographic through Kie.ai for each digest that will be sent.
-- Sends a personalized digest through Gmail to each address in `.local/subscribers.json`. Subscribers choose `web`, `ai`, or both; each email contains only the selected topic sections. The owner `hs6423590@gmail.com` continues to receive both topics unless listed with custom topics.
-- The scheduled job researches the existing Web development and Artificial intelligence topics. Signup choices must use `web` and/or `ai`.
+- Sends personalized, topic-matched digests through Gmail. The owner `hs6423590@gmail.com` continues to receive Web development and Artificial intelligence topics.
 - Stores deduplication state in `.local/newsletter_state.json`; keep this directory between runs.
 
-## Setup requirements
-- `.env` must contain working `TAVILY_API_KEY` and `KIE_API_KEY` values.
-- `.tmp/token.json` must authorize Gmail with the `gmail.send` scope.
-- For the GitHub Actions schedule, store the subscriber JSON array in the `NEWSLETTER_SUBSCRIBERS_JSON` repository secret. Example value: `[ {"email":"person@example.com","topics":["web"]} ]`. The owner address continues to receive both topics automatically. When running locally, the private `.local/subscribers.json` file is used instead.
-- The project `.venv` must have `requirements.txt` installed.
-- Add a subscriber with `.venv/bin/python tools/manage_subscribers.py add person@example.com web ai`; replace the topics with `web`, `ai`, or both. Unsubscribe with `.venv/bin/python tools/manage_subscribers.py remove person@example.com`. The subscriber file is private local data and is not committed.
-- The Mac must be running and connected to the network at the scheduled time. A missed run may execute when the Mac wakes.
+## Signup service setup
+- Deploy `tools/signup_app.py` as a persistent web service using the root `Procfile`.
+- Configure `PUBLIC_SIGNUP_URL`, `SUBSCRIBER_API_TOKEN`, `GMAIL_TOKEN_JSON`, and `NEWSLETTER_DB` on the hosting service. Mount persistent storage for `NEWSLETTER_DB` so verified subscriptions survive restarts. The Gmail token must have the `gmail.send` scope.
+- Add GitHub Actions repository secrets `NEWSLETTER_SIGNUP_API_URL` (the deployed public origin) and `SUBSCRIBER_API_TOKEN` (the same secret as on the web service). The workflow fetches only verified subscribers through the authenticated API.
+- Open the deployed service root to sign up with an email and freeform topic. The service sends a Gmail verification link; the address receives newsletters only after the link is opened.
+- `NEWSLETTER_SUBSCRIBERS_JSON` remains an optional manual fallback when `NEWSLETTER_SIGNUP_API_URL` is unset.
+
+## Newsletter job requirements
+- GitHub Actions secrets `TAVILY_API_KEY`, `KIE_API_KEY`, and `GMAIL_TOKEN_JSON` must be configured.
+- The project dependencies in `requirements.txt` must be installed.
 
 ## Run manually
 ```sh
@@ -24,6 +26,6 @@
 
 ## Safety and failures
 - Never print API keys, OAuth tokens, or credential file contents.
-- The workflow updates deduplication state only after Gmail confirms the send.
+- The workflow updates deduplication state only after Gmail confirms all sends.
 - Provider, network, or Gmail errors stop the run and are recorded by the scheduler log.
-- Only send to addresses explicitly added to the subscriber list or the owner address. New topics require adding a corresponding research topic and signup choice.
+- The signup API exposes subscriber data only with the bearer token and returns verified email addresses only.
