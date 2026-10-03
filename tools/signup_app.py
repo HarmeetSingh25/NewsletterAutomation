@@ -3,13 +3,13 @@
 
 import hashlib
 import hmac
-import json
 import os
 import re
 import secrets
 import sqlite3
 import time
 from email.message import EmailMessage
+from contextlib import closing
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -72,7 +72,7 @@ def signup():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",", 1)[0].strip()
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    with connect() as db:
+    with closing(connect()) as db, db:
         db.execute("DELETE FROM signup_attempts WHERE created_at < ?", (now - 86400,))
         attempts = db.execute("SELECT COUNT(*) FROM signup_attempts WHERE ip = ?", (ip,)).fetchone()[0]
         if attempts >= 10:
@@ -90,7 +90,7 @@ def signup():
 def verify(token):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     now = int(time.time())
-    with connect() as db:
+    with closing(connect()) as db, db:
         row = db.execute("SELECT email FROM subscribers WHERE verify_hash=? AND verify_expires>=?", (token_hash, now)).fetchone()
         if row is None:
             abort(400, "This verification link is invalid or expired. Please sign up again.")
@@ -104,7 +104,7 @@ def api_subscribers():
     supplied = request.headers.get("Authorization", "")
     if not expected or not hmac.compare_digest(supplied, "Bearer " + expected):
         abort(401)
-    with connect() as db:
+    with closing(connect()) as db, db:
         rows = db.execute("SELECT email, topic FROM subscribers WHERE verified=1 ORDER BY email").fetchall()
     return jsonify([{"email": row["email"], "topics": [row["topic"]]} for row in rows])
 

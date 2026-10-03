@@ -22,6 +22,8 @@ jobs:
       KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
       GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
       NEWSLETTER_SUBSCRIBERS_JSON: ${{ secrets.NEWSLETTER_SUBSCRIBERS_JSON }}
+      NEWSLETTER_SIGNUP_API_URL: ${{ secrets.NEWSLETTER_SIGNUP_API_URL }}
+      SUBSCRIBER_API_TOKEN: ${{ secrets.SUBSCRIBER_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
