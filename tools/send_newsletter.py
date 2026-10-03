@@ -21,15 +21,16 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 def gmail_credentials():
     token_json = os.getenv("GMAIL_TOKEN_JSON")
     if token_json:
-        creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+        token = Path("/tmp/newsletter_gmail_token.json") if os.getenv("VERCEL") else ROOT / ".tmp/token.json"
+        creds = Credentials.from_authorized_user_file(str(token), SCOPES) if token.exists() else Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
         if not creds.valid:
             if creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
                 raise RuntimeError("GMAIL_TOKEN_JSON is invalid or cannot be refreshed")
-        token = ROOT / ".tmp/token.json"
-        token.parent.mkdir(parents=True, exist_ok=True)
         token.write_text(creds.to_json(), encoding="utf-8")
+        if os.getenv("VERCEL"):
+            token.chmod(0o600)
         return creds
 
     credential_candidates = (

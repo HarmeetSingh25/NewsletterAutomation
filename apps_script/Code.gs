@@ -49,6 +49,7 @@ function subscribe(emailValue, topicValue, honeypot) {
   const cache = CacheService.getScriptCache();
   const throttleKey = "signup:" + digest_(email);
   if (cache.get(throttleKey)) return {ok: true, message: "If that address can be subscribed, a confirmation email is on its way."};
+  if (MailApp.getRemainingDailyQuota() < 1) return {ok: false, message: "Signup confirmations have reached today's limit. Please try again tomorrow."};
   cache.put(throttleKey, "1", 3600);
 
   const sheet = subscribersSheet_();

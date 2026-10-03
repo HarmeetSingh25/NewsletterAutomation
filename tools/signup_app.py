@@ -24,12 +24,32 @@ sys.path.insert(0, str(ROOT))
 from tools.send_newsletter import gmail_credentials
 
 DATABASE = Path(os.getenv("NEWSLETTER_DB", ROOT / ".local/subscribers.sqlite3"))
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def connect():
+    if DATABASE_URL:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        db = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        db.execute("""CREATE TABLE IF NOT EXISTS subscribers (
+            email TEXT PRIMARY KEY,
+            topic TEXT NOT NULL,
+            verified INTEGER NOT NULL DEFAULT 0,
+            verify_hash TEXT,
+            verify_expires BIGINT,
+            updated_at BIGINT NOT NULL
+        )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS signup_attempts (
+            ip TEXT NOT NULL,
+            created_at BIGINT NOT NULL
+        )""")
+        db.commit()
+        return db
     DATABASE.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
@@ -47,6 +67,12 @@ def connect():
     )""")
     db.commit()
     return db
+
+
+def execute(db, query, params=()):
+    if DATABASE_URL:
+        query = query.replace("?", "%s")
+    return db.execute(query, params)
 
 
 def send_verification(email, token):
@@ -78,12 +104,12 @@ def signup():
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     with closing(connect()) as db, db:
-        db.execute("DELETE FROM signup_attempts WHERE created_at < ?", (now - 86400,))
-        attempts = db.execute("SELECT COUNT(*) FROM signup_attempts WHERE ip = ?", (ip,)).fetchone()[0]
+        execute(db, "DELETE FROM signup_attempts WHERE created_at < ?", (now - 86400,))
+        attempts = execute(db, "SELECT COUNT(*) AS count FROM signup_attempts WHERE ip = ?", (ip,)).fetchone()["count"]
         if attempts >= 10:
             abort(429, "Too many signup requests. Try again tomorrow.")
-        db.execute("INSERT INTO signup_attempts(ip, created_at) VALUES (?, ?)", (ip, now))
-        db.execute("""INSERT INTO subscribers(email, topic, verified, verify_hash, verify_expires, updated_at)
+        execute(db, "INSERT INTO signup_attempts(ip, created_at) VALUES (?, ?)", (ip, now))
+        execute(db, """INSERT INTO subscribers(email, topic, verified, verify_hash, verify_expires, updated_at)
             VALUES (?, ?, 0, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET topic=excluded.topic,
             verified=0, verify_hash=excluded.verify_hash, verify_expires=excluded.verify_expires,
             updated_at=excluded.updated_at""", (email, topic, token_hash, now + 86400, now))
@@ -96,10 +122,10 @@ def verify(token):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     now = int(time.time())
     with closing(connect()) as db, db:
-        row = db.execute("SELECT email FROM subscribers WHERE verify_hash=? AND verify_expires>=?", (token_hash, now)).fetchone()
+        row = execute(db, "SELECT email FROM subscribers WHERE verify_hash=? AND verify_expires>=?", (token_hash, now)).fetchone()
         if row is None:
             abort(400, "This verification link is invalid or expired. Please sign up again.")
-        db.execute("UPDATE subscribers SET verified=1, verify_hash=NULL, verify_expires=NULL, updated_at=? WHERE email=?", (now, row["email"]))
+        execute(db, "UPDATE subscribers SET verified=1, verify_hash=NULL, verify_expires=NULL, updated_at=? WHERE email=?", (now, row["email"]))
     return "Your email is verified. You’re subscribed to the requested topic."
 
 
@@ -110,7 +136,7 @@ def api_subscribers():
     if not expected or not hmac.compare_digest(supplied, "Bearer " + expected):
         abort(401)
     with closing(connect()) as db, db:
-        rows = db.execute("SELECT email, topic FROM subscribers WHERE verified=1 ORDER BY email").fetchall()
+        rows = execute(db, "SELECT email, topic FROM subscribers WHERE verified=1 ORDER BY email").fetchall()
     return jsonify([{"email": row["email"], "topics": [row["topic"]]} for row in rows])
 
 
