@@ -2,6 +2,7 @@
 """Build and send the daily web development and AI news digest when new items appear."""
 
 import json
+import os
 import subprocess
 import sys
 from datetime import date
@@ -26,7 +27,10 @@ def run(*args):
 
 
 def load_subscribers():
-    if not SUBSCRIBERS.exists():
+    subscribers_json = os.getenv("NEWSLETTER_SUBSCRIBERS_JSON")
+    if subscribers_json:
+        data = json.loads(subscribers_json)
+    elif not SUBSCRIBERS.exists():
         data = []
     else:
         data = json.loads(SUBSCRIBERS.read_text(encoding="utf-8"))

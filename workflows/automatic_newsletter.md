@@ -12,6 +12,7 @@
 ## Setup requirements
 - `.env` must contain working `TAVILY_API_KEY` and `KIE_API_KEY` values.
 - `.tmp/token.json` must authorize Gmail with the `gmail.send` scope.
+- For the GitHub Actions schedule, store the subscriber JSON array in the `NEWSLETTER_SUBSCRIBERS_JSON` repository secret. Example value: `[ {"email":"person@example.com","topics":["web"]} ]`. The owner address continues to receive both topics automatically. When running locally, the private `.local/subscribers.json` file is used instead.
 - The project `.venv` must have `requirements.txt` installed.
 - Add a subscriber with `.venv/bin/python tools/manage_subscribers.py add person@example.com web ai`; replace the topics with `web`, `ai`, or both. Unsubscribe with `.venv/bin/python tools/manage_subscribers.py remove person@example.com`. The subscriber file is private local data and is not committed.
 - The Mac must be running and connected to the network at the scheduled time. A missed run may execute when the Mac wakes.
