@@ -19,3 +19,5 @@ The Flask app in `tools/signup_app.py` serves the public signup page, verifies e
 Keep the Gmail token and both random keys private. Do not commit them or paste them into chat. The signup database must be persistent PostgreSQL; Vercel's function filesystem is not suitable for keeping subscriber records. Vercel supports root `app.py` Flask deployments with zero configuration; see [Vercel's Flask deployment guide](https://vercel.com/docs/frameworks/backend/flask).
 
 The current Gmail account can send up to 500 messages per day. Signup is limited to 50 confirmation messages per day and 10 requests per IP per day; the scheduled sender caps newsletters at 400 email/topic messages to leave room for confirmations. If the list grows, move newsletter delivery to a dedicated mailing provider. Google also requires subscribed/marketing mail to provide an unsubscribe mechanism; this app provides a confirmation page for link clicks and supports one-click unsubscribe POST requests.
+
+Vercel skips deployments when a commit changes only `.local/newsletter_state.json`, so daily deduplication commits do not redeploy the signup app.
