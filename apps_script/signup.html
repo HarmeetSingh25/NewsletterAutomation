@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { margin: 0; padding: 32px 16px; background: #f1f5f9; color: #0f172a; font: 16px Arial, sans-serif; }
+      main { max-width: 520px; margin: 0 auto; padding: 28px; background: white; border-radius: 14px; box-shadow: 0 8px 30px #0f172a12; }
+      h1 { margin-top: 0; font-size: 26px; }
+      p { color: #475569; line-height: 1.5; }
+      label { display: block; margin: 18px 0 7px; font-weight: 600; }
+      input { box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+      button { margin-top: 20px; padding: 12px 18px; border: 0; border-radius: 8px; background: #0f766e; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+      #website { position: absolute; left: -10000px; }
+      #status { min-height: 24px; margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Get a newsletter about your topic</h1>
+      <p>Choose a topic. We’ll email you a link to confirm before adding you. Every newsletter includes an unsubscribe link.</p>
+      <form id="signup" onsubmit="submitForm(event)">
+        <label for="email">Email address</label>
+        <input id="email" type="email" autocomplete="email" required maxlength="254">
+        <label for="topic">Topic you want updates about</label>
+        <input id="topic" type="text" required maxlength="120" placeholder="For example: React, AI agents, or cybersecurity">
+        <label id="website-label" for="website">Leave this field empty</label>
+        <input id="website" type="text" tabindex="-1" autocomplete="off" aria-labelledby="website-label">
+        <button id="submit" type="submit">Sign up</button>
+      </form>
+      <div id="status" role="status" aria-live="polite"></div>
+    </main>
+    <script>
+      function submitForm(event) {
+        event.preventDefault();
+        const button = document.getElementById('submit');
+        const status = document.getElementById('status');
+        button.disabled = true;
+        status.textContent = 'Submitting…';
+        google.script.run
+          .withSuccessHandler(function (result) { status.textContent = result.message; button.disabled = false; })
+          .withFailureHandler(function () { status.textContent = 'Could not submit right now. Please try again later.'; button.disabled = false; })
+          .subscribe(document.getElementById('email').value, document.getElementById('topic').value, document.getElementById('website').value);
+      }
+    </script>
+  </body>
+</html>

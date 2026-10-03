@@ -37,10 +37,16 @@ def render(newsletter):
         for item in newsletter.get("sources", []) if item.get("url")
     )
     sources_section = f'<h2 style="font-size:18px;color:#0f172a;margin:28px 0 10px">Sources</h2><ul style="padding-left:20px;color:#334155">{sources}</ul>' if sources else ""
+    unsubscribe = (
+        f'<p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b">'
+        f'You received this because you subscribed to topic updates. '
+        f'<a href="{esc(newsletter.get("unsubscribe_url"))}" style="color:#475569">Unsubscribe</a></p>'
+        if newsletter.get("unsubscribe_url") else ""
+    )
     return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(newsletter.get('subject'))}</title></head>
 <body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">{esc(newsletter.get('preheader'))}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px"><tr><td style="padding:36px 32px">
-<h1 style="font-size:30px;line-height:1.2;color:#0f172a;margin:0 0 20px">{esc(newsletter.get('title'))}</h1>{paragraphs(newsletter.get('intro'))}{image}{sections}{paragraphs(newsletter.get('closing'))}{sources_section}
+<h1 style="font-size:30px;line-height:1.2;color:#0f172a;margin:0 0 20px">{esc(newsletter.get('title'))}</h1>{paragraphs(newsletter.get('intro'))}{image}{sections}{paragraphs(newsletter.get('closing'))}{sources_section}{unsubscribe}
 </td></tr></table></td></tr></table></body></html>'''
 
 

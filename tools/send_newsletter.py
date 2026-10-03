@@ -69,6 +69,8 @@ def main():
     parser.add_argument("--html", type=Path, default=ROOT / ".tmp/newsletter.html")
     parser.add_argument("--confirm-send", action="store_true", help="Require interactive confirmation before sending")
     parser.add_argument("--yes", action="store_true", help="Send without interactive prompt; intended for a previously authorized scheduled workflow")
+    parser.add_argument("--unsubscribe-url", help="Recipient-specific unsubscribe URL for subscribed newsletters")
+    parser.add_argument("--redact-recipient", action="store_true", help="Do not print the recipient address in logs")
     args = parser.parse_args()
     if not args.confirm_send:
         parser.error("sending requires --confirm-send")
@@ -79,6 +81,9 @@ def main():
     message = EmailMessage()
     message["To"] = args.to
     message["Subject"] = newsletter["subject"]
+    if args.unsubscribe_url:
+        message["List-Unsubscribe"] = f"<{args.unsubscribe_url}>"
+        message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     message.set_content(f"{newsletter.get('title', newsletter['subject'])}\n\nOpen this email in an HTML-capable mail client to view the formatted newsletter.")
     message.add_alternative(html_path.read_text(encoding="utf-8"), subtype="html")
     image_path = newsletter.get("infographic")
@@ -90,7 +95,8 @@ def main():
             mime_type, _ = mimetypes.guess_type(path.name)
             maintype, subtype = (mime_type or "image/png").split("/", 1)
             message.get_payload()[-1].add_related(path.read_bytes(), maintype=maintype, subtype=subtype, cid="<infographic>", filename=path.name)
-    print(f"To: {args.to}\nSubject: {newsletter['subject']}\nHTML preview: {html_path}")
+    to_line = "Recipient: [redacted]" if args.redact_recipient else f"To: {args.to}"
+    print(f"{to_line}\nSubject: {newsletter['subject']}\nHTML preview: {html_path}")
     if not args.yes:
         if input("Type SEND to deliver this email: ").strip() != "SEND":
             print("Cancelled; no email sent.")
