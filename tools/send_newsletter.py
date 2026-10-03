@@ -5,6 +5,7 @@ import argparse
 import base64
 import json
 import mimetypes
+import os
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -18,6 +19,19 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 
 def gmail_credentials():
+    token_json = os.getenv("GMAIL_TOKEN_JSON")
+    if token_json:
+        creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+        if not creds.valid:
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                raise RuntimeError("GMAIL_TOKEN_JSON is invalid or cannot be refreshed")
+        token = ROOT / ".tmp/token.json"
+        token.parent.mkdir(parents=True, exist_ok=True)
+        token.write_text(creds.to_json(), encoding="utf-8")
+        return creds
+
     credential_candidates = (
         ROOT / "credentials.json",
         ROOT / ".tmp/credentials.json",
