@@ -3,24 +3,29 @@
 
 import hashlib
 import hmac
+import base64
 import os
 import re
 import secrets
 import sqlite3
+import sys
 import time
 from email.message import EmailMessage
 from contextlib import closing
 from pathlib import Path
 from urllib.parse import urljoin
 
-from flask import Flask, abort, jsonify, redirect, request
+from flask import Flask, abort, jsonify, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 from googleapiclient.discovery import build
 
-from send_newsletter import gmail_credentials
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from tools.send_newsletter import gmail_credentials
+
 DATABASE = Path(os.getenv("NEWSLETTER_DB", ROOT / ".local/subscribers.sqlite3"))
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -51,7 +56,7 @@ def send_verification(email, token):
     message["To"] = email
     message["Subject"] = "Confirm your newsletter signup"
     message.set_content(f"Confirm your email and topic subscription by opening this link:\n\n{link}\n\nThis link expires in 24 hours. If you did not request this, ignore this message.")
-    raw = __import__("base64").urlsafe_b64encode(message.as_bytes()).decode("ascii")
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
     build("gmail", "v1", credentials=gmail_credentials()).users().messages().send(userId="me", body={"raw": raw}).execute()
 
 
@@ -69,7 +74,7 @@ def signup():
     if not EMAIL_RE.fullmatch(email) or len(email) > 254 or not topic or len(topic) > 160:
         abort(400, "Enter a valid email and a topic under 160 characters.")
     now = int(time.time())
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",", 1)[0].strip()
+    ip = request.remote_addr or "unknown"
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     with closing(connect()) as db, db:
