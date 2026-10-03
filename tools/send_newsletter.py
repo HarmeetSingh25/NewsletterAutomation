@@ -54,6 +54,7 @@ def main():
     parser.add_argument("--to", required=True, help="Recipient email address")
     parser.add_argument("--html", type=Path, default=ROOT / ".tmp/newsletter.html")
     parser.add_argument("--confirm-send", action="store_true", help="Require interactive confirmation before sending")
+    parser.add_argument("--yes", action="store_true", help="Send without interactive prompt; intended for a previously authorized scheduled workflow")
     args = parser.parse_args()
     if not args.confirm_send:
         parser.error("sending requires --confirm-send")
@@ -76,9 +77,10 @@ def main():
             maintype, subtype = (mime_type or "image/png").split("/", 1)
             message.get_payload()[-1].add_related(path.read_bytes(), maintype=maintype, subtype=subtype, cid="<infographic>", filename=path.name)
     print(f"To: {args.to}\nSubject: {newsletter['subject']}\nHTML preview: {html_path}")
-    if input("Type SEND to deliver this email: ").strip() != "SEND":
-        print("Cancelled; no email sent.")
-        return
+    if not args.yes:
+        if input("Type SEND to deliver this email: ").strip() != "SEND":
+            print("Cancelled; no email sent.")
+            return
     encoded = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
     result = build("gmail", "v1", credentials=gmail_credentials()).users().messages().send(userId="me", body={"raw": encoded}).execute()
     print(f"Sent. Gmail message ID: {result.get('id')}")
